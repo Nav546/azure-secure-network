@@ -47,3 +47,6 @@ Azure login uses OIDC federated credentials, so no Azure passwords or keys are s
 ```bash
 az group delete -n rg-secure-net --yes --no-wait
 ```
+<img width="999" height="1293" alt="actions-run-redacted" src="https://github.com/user-attachments/assets/d0db253b-6a72-4dd9-8e65-0daae8dba9db" />
+<img width="2560" height="1392" alt="topology-2-redacted" src="https://github.com/user-attachments/assets/7f978b3a-8a09-4eeb-ba1b-f8d829f400a2" />
+<img width="2560" height="1392" alt="topology-1-redacted" src="https://github.com/user-attachments/assets/f95e303d-03e7-4c63-9bbf-548502836178" />
