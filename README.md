@@ -3,13 +3,13 @@
 ## Screenshots
 
 **Application subnet (VM, no public IP)**
-![App subnet topology](topology-1-redacted)
+![App subnet topology](topology-1-redacted.png)
 
 **Endpoint subnet (private endpoint to storage)**
-![Endpoint subnet topology](topology-2-redacted)
+![Endpoint subnet topology](topology-2-redacted.png)
 
 **Successful pipeline run**
-![GitHub Actions run](docs/actions-run-redacted.png)
+![GitHub Actions run](actions-run-redacted.png)
 
 Infrastructure as code (Bicep) and CI/CD (GitHub Actions) that deploys a storage account which **cannot be reached from the public internet**. The only path in is a private endpoint inside a locked-down virtual network.
 
