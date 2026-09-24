@@ -1,0 +1,100 @@
+name: Deploy secure network
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write   # needed for OIDC login (no stored Azure password)
+  contents: read
+
+env:
+  RESOURCE_GROUP: rg-secure-net
+  TEMPLATE: infra/main.bicep
+
+jobs:
+  # Runs on pull requests: shows what WOULD change, deploys nothing.
+  what-if:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Lint Bicep
+        run: az bicep build --file "$TEMPLATE" --stdout > /dev/null
+
+      - name: What-if preview
+        run: |
+          az deployment group what-if \
+            --resource-group "$RESOURCE_GROUP" \
+            --template-file "$TEMPLATE" \
+            --parameters adminSshPublicKey="${{ secrets.VM_SSH_PUBLIC_KEY }}"
+
+  # Runs on merge to main: deploy, then prove the storage is private.
+  deploy:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Lint Bicep
+        run: az bicep build --file "$TEMPLATE" --stdout > /dev/null
+
+      - name: Deploy
+        id: deploy
+        run: |
+          out=$(az deployment group create \
+            --resource-group "$RESOURCE_GROUP" \
+            --template-file "$TEMPLATE" \
+            --parameters adminSshPublicKey="${{ secrets.VM_SSH_PUBLIC_KEY }}" \
+            --query properties.outputs -o json)
+          echo "blob_host=$(echo "$out" | jq -r .blobHost.value)" >> "$GITHUB_OUTPUT"
+          echo "vm_name=$(echo "$out" | jq -r .vmName.value)"   >> "$GITHUB_OUTPUT"
+
+      - name: Test 1 - from the public internet (should NOT be private)
+        env:
+          HOST: ${{ steps.deploy.outputs.blob_host }}
+        run: |
+          ip=$(getent hosts "$HOST" | awk '{print $1}' | head -n1)
+          echo "From GitHub runner, $HOST resolves to: $ip"
+          if [[ "$ip" == 10.* ]]; then
+            echo "FAIL: public internet should not see a private address"; exit 1
+          fi
+          echo "Response from outside:"
+          curl -s "https://$HOST/?comp=list" | head -c 400; echo
+          echo "PASS: outside world gets the public name only, and access is refused"
+
+      - name: Test 2 - from inside the VNet (should be private)
+        env:
+          HOST: ${{ steps.deploy.outputs.blob_host }}
+          VM: ${{ steps.deploy.outputs.vm_name }}
+        run: |
+          result=$(az vm run-command invoke \
+            --resource-group "$RESOURCE_GROUP" \
+            --name "$VM" \
+            --command-id RunShellScript \
+            --scripts "getent hosts $HOST; curl -s -o /dev/null -w 'HTTP %{http_code}' https://$HOST/?comp=list" \
+            --query 'value[0].message' -o tsv)
+          echo "$result"
+          if echo "$result" | grep -q "10\.0\.2\."; then
+            echo "PASS: inside the VNet, storage resolves to the private endpoint (10.0.2.x)"
+          else
+            echo "FAIL: VNet is not resolving to the private endpoint - check the DNS zone link"; exit 1
+          fi
