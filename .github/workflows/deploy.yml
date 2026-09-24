@@ -3,8 +3,13 @@ name: Deploy secure network
 on:
   push:
     branches: [main]
+    paths:
+      - 'infra/**'
+      - '.github/workflows/**'
   pull_request:
     branches: [main]
+    paths:
+      - 'infra/**'
   workflow_dispatch:
 
 permissions:
