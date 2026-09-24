@@ -7,7 +7,6 @@
 **Endpoint subnet (private endpoint to storage)**
 
 **Successful pipeline run**
-![GitHub Actions run](actions-run-redacted.png)
 
 Infrastructure as code (Bicep) and CI/CD (GitHub Actions) that deploys a storage account which **cannot be reached from the public internet**. The only path in is a private endpoint inside a locked-down virtual network.
 
