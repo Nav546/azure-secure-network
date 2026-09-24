@@ -3,10 +3,8 @@
 ## Screenshots
 
 **Application subnet (VM, no public IP)**
-![App subnet topology](topology-1-redacted.png)
 
 **Endpoint subnet (private endpoint to storage)**
-![Endpoint subnet topology](topology-2-redacted.png)
 
 **Successful pipeline run**
 ![GitHub Actions run](actions-run-redacted.png)
